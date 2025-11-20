@@ -89,19 +89,24 @@ export default function UploadForm() {
 
   if (uploadSuccess && documentId) {
     return (
-      <Card className="mx-auto max-w-2xl">
+      <Card className="mx-auto max-w-2xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 border-2 border-[var(--success)]">
         <CardHeader>
-          <CardTitle className="text-center text-green-600">Upload Successful!</CardTitle>
+          <CardTitle className="text-center text-[var(--success-dark)] dark:text-[var(--success)] flex items-center justify-center">
+            <svg className="mr-2 h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Upload Successful!
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-center text-gray-600">
+        <CardContent className="space-y-6">
+          <p className="text-center text-[var(--text-primary)] text-lg font-semibold">
             Your document has been processed successfully.
           </p>
           <div className="flex justify-center space-x-4">
-            <Button onClick={() => router.push(`/documents/${documentId}`)}>
+            <Button onClick={() => router.push(`/documents/${documentId}`)} size="lg">
               View Results
             </Button>
-            <Button variant="outline" onClick={() => window.location.reload()}>
+            <Button variant="outline" onClick={() => window.location.reload()} size="lg">
               Upload Another
             </Button>
           </div>
@@ -146,36 +151,36 @@ export default function UploadForm() {
               {...register('file')}
               error={errors.file?.message as string}
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-2 text-xs font-medium text-[var(--text-tertiary)]">
               Accepted formats: PDF, JPEG, PNG (max 10MB)
             </p>
           </div>
 
           {/* Template Mode Selection */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
+            <label className="mb-3 block text-sm font-semibold text-[var(--text-primary)]">
               Template Mode
             </label>
-            <div className="flex space-x-4">
-              <label className="flex items-center">
+            <div className="flex space-x-6">
+              <label className="flex items-center cursor-pointer">
                 <input
                   type="radio"
                   value="existing"
                   {...register('template_mode')}
                   onChange={() => setTemplateMode('existing')}
-                  className="mr-2"
+                  className="mr-3 h-4 w-4 text-[var(--primary)] focus:ring-[var(--primary)]"
                 />
-                Use Existing Template
+                <span className="text-sm font-semibold text-[var(--text-primary)]">Use Existing Template</span>
               </label>
-              <label className="flex items-center">
+              <label className="flex items-center cursor-pointer">
                 <input
                   type="radio"
                   value="new"
                   {...register('template_mode')}
                   onChange={() => setTemplateMode('new')}
-                  className="mr-2"
+                  className="mr-3 h-4 w-4 text-[var(--primary)] focus:ring-[var(--primary)]"
                 />
-                Create New Template
+                <span className="text-sm font-semibold text-[var(--text-primary)]">Create New Template</span>
               </label>
             </div>
           </div>
@@ -223,8 +228,8 @@ export default function UploadForm() {
 
           {/* Error Message */}
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-800">{error}</p>
+            <div className="rounded-lg bg-[var(--danger-light)] border-2 border-[var(--danger)] p-4">
+              <p className="text-sm font-semibold text-[var(--danger-dark)] dark:text-[var(--danger)]">{error}</p>
             </div>
           )}
 

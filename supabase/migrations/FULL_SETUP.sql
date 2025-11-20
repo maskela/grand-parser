@@ -38,6 +38,7 @@ CREATE TABLE templates (
   level_of_details TEXT,
   description TEXT,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  is_public BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -73,6 +74,7 @@ CREATE INDEX idx_documents_template_id ON documents(template_id);
 CREATE INDEX idx_documents_status ON documents(status);
 CREATE INDEX idx_results_document_id ON results(document_id);
 CREATE INDEX idx_templates_created_by ON templates(created_by);
+CREATE INDEX idx_templates_is_public ON templates(is_public);
 
 -- ==================== STEP 4: ENABLE ROW LEVEL SECURITY ====================
 
@@ -93,10 +95,13 @@ CREATE POLICY "Users can update their own data"
   USING (auth.uid()::text = clerk_id);
 
 -- RLS Policies for templates table
-CREATE POLICY "Templates are viewable by everyone authenticated"
+CREATE POLICY "Users can view public templates or their own"
   ON templates FOR SELECT
   TO authenticated
-  USING (true);
+  USING (
+    is_public = true OR 
+    created_by IN (SELECT id FROM users WHERE clerk_id = auth.uid()::text)
+  );
 
 CREATE POLICY "Users can create templates"
   ON templates FOR INSERT
@@ -107,6 +112,14 @@ CREATE POLICY "Users can update their own templates"
   ON templates FOR UPDATE
   TO authenticated
   USING (created_by IN (SELECT id FROM users WHERE clerk_id = auth.uid()::text));
+
+CREATE POLICY "Users can delete their own templates"
+  ON templates FOR DELETE
+  TO authenticated
+  USING (
+    created_by IN (SELECT id FROM users WHERE clerk_id = auth.uid()::text)
+    AND is_public = false
+  );
 
 -- RLS Policies for documents table
 CREATE POLICY "Users can view their own documents"

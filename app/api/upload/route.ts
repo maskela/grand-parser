@@ -122,14 +122,23 @@ export async function POST(req: NextRequest) {
 
     // Call n8n webhook synchronously
     const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;
+    
+    // Debug logging
+    console.log('n8n Webhook URL configured:', !!n8nWebhookUrl);
+    console.log('n8n Webhook URL value:', n8nWebhookUrl ? `${n8nWebhookUrl.substring(0, 30)}...` : 'NOT SET');
+    
     if (!n8nWebhookUrl) {
+      console.error('N8N_WEBHOOK_URL environment variable is not set');
       return NextResponse.json(
-        { success: false, error: 'n8n webhook URL not configured' },
+        { success: false, error: 'n8n webhook URL not configured. Please set N8N_WEBHOOK_URL in your .env file.' },
         { status: 500 }
       );
     }
 
     try {
+      console.log('Calling n8n webhook:', n8nWebhookUrl);
+      console.log('Payload:', JSON.stringify(webhookPayload, null, 2));
+      
       const webhookResponse = await axios.post<N8nWebhookResponse>(
         n8nWebhookUrl,
         webhookPayload,
@@ -143,6 +152,9 @@ export async function POST(req: NextRequest) {
           timeout: 120000, // 2 minutes timeout
         }
       );
+      
+      console.log('n8n webhook response status:', webhookResponse.status);
+      console.log('n8n webhook response data:', JSON.stringify(webhookResponse.data, null, 2));
 
       const n8nResult = webhookResponse.data;
 
@@ -182,6 +194,14 @@ export async function POST(req: NextRequest) {
       });
     } catch (webhookError: any) {
       console.error('n8n webhook error:', webhookError);
+      console.error('Error details:', {
+        message: webhookError.message,
+        code: webhookError.code,
+        status: webhookError.response?.status,
+        statusText: webhookError.response?.statusText,
+        data: webhookError.response?.data,
+        url: webhookError.config?.url,
+      });
 
       // Update document status to failed
       await supabase
@@ -189,12 +209,24 @@ export async function POST(req: NextRequest) {
         .update({ status: 'failed' })
         .eq('id', document.id);
 
+      // Provide more detailed error message
+      const errorMessage = webhookError.response?.data?.error 
+        || webhookError.response?.data?.message 
+        || webhookError.message 
+        || 'Failed to process document';
+      
+      const errorDetails = webhookError.response?.status 
+        ? `n8n returned status ${webhookError.response.status}: ${errorMessage}`
+        : `Network error: ${errorMessage}`;
+
       return NextResponse.json(
         {
           success: false,
           error: 'Failed to process document',
-          message: webhookError.message,
+          message: errorDetails,
           document_id: document.id,
+          n8n_status: webhookError.response?.status,
+          n8n_error: webhookError.response?.data,
         },
         { status: 500 }
       );

@@ -13,72 +13,79 @@ export default async function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      <div className="container mx-auto px-4 py-20">
-        {/* Hero Section */}
-        <div className="mx-auto max-w-5xl text-center">
-          <div className="mb-6 inline-flex items-center rounded-full bg-[var(--primary-light)] dark:bg-[var(--primary-dark)] px-4 py-2 text-sm font-semibold text-[var(--primary-dark)] dark:text-[var(--primary-light)]">
-            ⚡ 87.5% Cheaper than ChatGPT-4 Vision
-          </div>
-          <h1 className="text-6xl font-extrabold text-[var(--text-primary)] mb-6 leading-tight">
-            Grand Parser
-          </h1>
-          <p className="mt-4 text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">
-            AI-Powered Document Processing Platform
-          </p>
-          <p className="mx-auto mt-8 max-w-3xl text-xl text-[var(--text-secondary)] leading-relaxed">
-            Upload documents, extract structured data with custom templates, and visualize results with powerful analytics. 
-            <span className="font-semibold text-[var(--text-primary)]"> Keep your history, save on costs, and process data at scale.</span>
-          </p>
-          <div className="mt-12 flex flex-wrap justify-center gap-4">
-            {userId ? (
-              <>
-                <Link href="/upload">
-                  <Button size="lg" className="text-lg px-8">
-                    <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    Upload Document
-                  </Button>
-                </Link>
-                <Link href="/documents">
-                  <Button size="lg" variant="outline" className="text-lg px-8">
-                    View Documents
-                  </Button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/sign-up">
-                  <Button size="lg" className="text-lg px-8">
-                    Get Started Free
-                  </Button>
-                </Link>
-                <Link href="/sign-in">
-                  <Button size="lg" variant="outline" className="text-lg px-8">
-                    Sign In
-                  </Button>
-                </Link>
-              </>
-            )}
-          </div>
-          
-          {/* Key Benefits */}
-          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-6 rounded-xl border-2 border-[var(--success)]">
-              <div className="text-3xl font-bold text-[var(--success)] mb-2">$0.01</div>
-              <div className="text-sm font-semibold text-[var(--text-secondary)]">Per document vs $0.08 ChatGPT</div>
+    <div className="min-h-screen bg-[var(--background)]">
+      {/* Hero Section with Gradient Background */}
+      <div className="relative bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 dark:from-blue-800 dark:via-indigo-900 dark:to-purple-900">
+        <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
+        <div className="container mx-auto px-4 py-20 relative z-10">
+          <div className="mx-auto max-w-5xl text-center">
+            <div className="mb-6 inline-flex items-center rounded-full bg-white/20 backdrop-blur-md border-2 border-white/30 px-5 py-2 text-sm font-bold text-white shadow-lg">
+              ⚡ 87.5% Cheaper than ChatGPT-4 Vision
             </div>
-            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-6 rounded-xl border-2 border-[var(--primary)]">
-              <div className="text-3xl font-bold text-[var(--primary)] mb-2">5-10s</div>
-              <div className="text-sm font-semibold text-[var(--text-secondary)]">Average processing time</div>
+            <h1 className="text-6xl md:text-7xl font-extrabold text-white mb-6 leading-tight drop-shadow-lg">
+              Grand Parser
+            </h1>
+            <p className="mt-4 text-3xl md:text-4xl font-bold text-white/95 drop-shadow-md">
+              AI-Powered Document Processing Platform
+            </p>
+            <p className="mx-auto mt-8 max-w-3xl text-xl text-white/90 leading-relaxed font-medium">
+              Upload documents, extract structured data with custom templates, and visualize results with powerful analytics. 
+              <span className="font-bold text-yellow-200"> Keep your history, save on costs, and process data at scale.</span>
+            </p>
+            <div className="mt-12 flex flex-wrap justify-center gap-4">
+              {userId ? (
+                <>
+                  <Link href="/upload">
+                    <Button size="lg" className="text-lg px-8 bg-white text-blue-700 hover:bg-blue-50 shadow-2xl border-2 border-white/50 font-bold">
+                      <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      Upload Document
+                    </Button>
+                  </Link>
+                  <Link href="/documents">
+                    <Button size="lg" variant="secondary" className="text-lg px-8 bg-white/10 backdrop-blur-md border-2 border-white/50 text-white hover:bg-white/20 shadow-xl font-bold">
+                      View Documents
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/sign-up">
+                    <Button size="lg" className="text-lg px-8 bg-white text-blue-700 hover:bg-blue-50 shadow-2xl border-2 border-white/50 font-bold">
+                      Get Started Free
+                    </Button>
+                  </Link>
+                  <Link href="/sign-in">
+                    <Button size="lg" variant="secondary" className="text-lg px-8 bg-white/10 backdrop-blur-md border-2 border-white/50 text-white hover:bg-white/20 shadow-xl font-bold">
+                      Sign In
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
-            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-6 rounded-xl border-2 border-[var(--warning)]">
-              <div className="text-3xl font-bold text-[var(--warning)] mb-2">∞</div>
-              <div className="text-sm font-semibold text-[var(--text-secondary)]">Full history retention</div>
+            
+            {/* Key Benefits */}
+            <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border-2 border-green-400 dark:border-green-600 shadow-xl">
+                <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">$0.01</div>
+                <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">Per document vs $0.08 ChatGPT</div>
+              </div>
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border-2 border-blue-400 dark:border-blue-600 shadow-xl">
+                <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">5-10s</div>
+                <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">Average processing time</div>
+              </div>
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border-2 border-amber-400 dark:border-amber-600 shadow-xl">
+                <div className="text-3xl font-bold text-amber-600 dark:text-amber-400 mb-2">∞</div>
+                <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">Full history retention</div>
+              </div>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Content Section */}
+      <div className="container mx-auto px-4 py-20">
 
         {/* Features Section */}
         <div className="mx-auto mt-32 max-w-6xl">

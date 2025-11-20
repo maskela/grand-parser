@@ -19,3 +19,6 @@ DROP FUNCTION IF EXISTS get_user_id_from_clerk(TEXT) CASCADE;
 -- Make sure you've backed up any important data first.
 
 
+
+
+

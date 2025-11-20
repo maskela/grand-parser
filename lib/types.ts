@@ -14,6 +14,7 @@ export interface Template {
   level_of_details: string | null;
   description: string | null;
   created_by: string | null;
+  is_public: boolean;
   created_at: string;
 }
 

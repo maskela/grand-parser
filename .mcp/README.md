@@ -23,3 +23,6 @@ MCP (Model Context Protocol) enables AI assistants like Cursor to directly inter
 This is for **development only**. The runtime application uses the standard Supabase JavaScript client, not the MCP server.
 
 
+
+
+

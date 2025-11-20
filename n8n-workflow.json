@@ -1,0 +1,1161 @@
+{
+  "name": "Grand Parser - Document Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "grand-parser",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [240, 300],
+      "webhookId": "grand-parser-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "doc-id",
+              "name": "document_id",
+              "value": "={{ $json.body.document_id }}",
+              "type": "string"
+            },
+            {
+              "id": "file-path",
+              "name": "file_path",
+              "value": "={{ $json.body.file_path }}",
+              "type": "string"
+            },
+            {
+              "id": "filename",
+              "name": "filename",
+              "value": "={{ $json.body.filename }}",
+              "type": "string"
+            },
+            {
+              "id": "template-id",
+              "name": "template_id",
+              "value": "={{ $json.body.template_id || null }}",
+              "type": "string"
+            },
+            {
+              "id": "new-template",
+              "name": "new_template",
+              "value": "={{ $json.body.new_template || null }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-variables",
+      "name": "Set Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/storage/v1/object/documents/{{ $json.file_path }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "responseFormat": "file",
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-file",
+      "name": "Download File from Storage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if file is PDF based on filename extension\nconst filename = $input.item.json.filename || '';\nconst isPdf = /\\.pdf$/i.test(filename);\n\n// Get binary data - it should be in $input.item.binary.data\nconst binaryData = $input.item.binary?.data || $input.item.binary;\n\nreturn [{\n  json: {\n    ...$input.item.json,\n    isPdf: isPdf,\n    filename: filename\n  },\n  binary: {\n    data: binaryData\n  }\n}];"
+      },
+      "id": "check-file-type",
+      "name": "Check File Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-pdf-condition",
+              "leftValue": "={{ $json.isPdf }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-pdf",
+      "name": "If PDF",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://paddleocr-api:8000/ocr/pdf",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "combine_pages",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ocr-pdf",
+      "name": "Paddle OCR PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://paddleocr-api:8000/ocr/image",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ocr-image",
+      "name": "Paddle OCR Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "merge-text",
+              "name": "text",
+              "value": "={{ $json.text || $json.output?.text || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "merge-doc-id",
+              "name": "document_id",
+              "value": "={{ $('Set Variables').item.json.document_id }}",
+              "type": "string"
+            },
+            {
+              "id": "merge-file-path",
+              "name": "file_path",
+              "value": "={{ $('Set Variables').item.json.file_path }}",
+              "type": "string"
+            },
+            {
+              "id": "merge-filename",
+              "name": "filename",
+              "value": "={{ $('Set Variables').item.json.filename }}",
+              "type": "string"
+            },
+            {
+              "id": "merge-template-id",
+              "name": "template_id",
+              "value": "={{ $('Set Variables').item.json.template_id }}",
+              "type": "string"
+            },
+            {
+              "id": "merge-new-template",
+              "name": "new_template",
+              "value": "={{ $('Set Variables').item.json.new_template }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "merge-ocr-results",
+      "name": "Merge OCR Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-template-id",
+              "leftValue": "={{ $json.template_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-template",
+      "name": "If Has Template ID",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "templates",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.template_id }}"
+            }
+          ]
+        }
+      },
+      "id": "get-template",
+      "name": "Get Template",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [2000, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-new-template",
+              "leftValue": "={{ $json.new_template }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-new-template",
+      "name": "If New Template",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2000, 400]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=<task>\n  <objective>\n    Generate a JSON schema example that represents the structured data described in the instructions, suitable for extracting information from the provided document text.\n  </objective>\n\n  <critical_instructions>\n    <instruction priority=\"highest\">Return ONLY a valid JSON object representing the schema example - no markdown, no code blocks, no explanations, no preamble</instruction>\n    <instruction priority=\"highest\">\nYour output MUST be a single valid JSON object. \nDo NOT wrap the JSON in any container key (such as \"output\").\nDo NOT return the JSON as a string. \nStart with '{' and end with '}'.\n    </instruction>\n    <instruction priority=\"highest\">Include all fields described in the instructions</instruction>\n    <instruction priority=\"high\">For optional fields, use null as placeholder values</instruction>\n    <instruction priority=\"high\">Preserve field types and hierarchy exactly as described</instruction>\n    <instruction priority=\"medium\">Do not include any data not explicitly mentioned in the instructions</instruction>\n\n    <instruction priority=\"low\">\n      The level_of_detail value (from 1 to 10) may influence how elaborated\n      example objects, placeholder arrays, and nested structures appear,\n      but it must NEVER introduce fields not mentioned in the instructions.\n    </instruction>\n  </critical_instructions>\n\n  <detail_control>\n    <level_of_detail>{{ $json.new_template.level_of_details }}</level_of_detail>\n    <rules>\n      <rule priority=\"low\">Level 1-3: produce minimal schema (only required fields + null placeholders)</rule>\n      <rule priority=\"low\">Level 4-6: include required + optional fields with simple placeholder examples</rule>\n      <rule priority=\"low\">Level 7-10: include fully expanded structures for arrays and objects, but only using fields explicitly described in the instructions</rule>\n      <rule priority=\"low\">NEVER invent new fields or assume meanings</rule>\n    </rules>\n  </detail_control>\n\n  <data_handling>\n    <rule type=\"null_values\">Use null for missing optional fields</rule>\n    <rule type=\"strings\">Strings should be empty strings or null as placeholder</rule>\n    <rule type=\"numbers\">Numbers should be 0 or null as placeholder</rule>\n    <rule type=\"arrays\">Arrays should contain example element(s) if allowed by level_of_detail</rule>\n    <rule type=\"objects\">Objects should include all subfields with example or null values</rule>\n  </data_handling>\n\n  <validation>\n    <check>Ensure JSON is valid and parseable</check>\n    <check>Ensure the schema example reflects the field names, types, and nesting as described</check>\n    <check>All fields in the instructions must appear in the JSON structure</check>\n    <check>Level of detail must never break any mandatory instructions</check>\n  </validation>\n\n  <output_format>\n    Return only the JSON object representing the schema example.\n    Do not wrap in markdown code blocks.\n    Start directly with \"{\" and end with \"}\".\n  </output_format>\n</task>\n\n<input>\n  <document_text>\n    {{ $json.text }}\n  </document_text>\n  <json_instructions>\n    {{ $json.new_template.description }}\n  </json_instructions>\n</input>",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "You are a specialized json structured-data extraction assistant.\n\nYour expertise includes:\n- Converting unstructured or semi-structured text into clean, well-formed JSON\n- Following arbitrary user-provided schemas with exact field names and hierarchy\n- Preserving all values exactly as written in the source text\n- Distinguishing required vs. optional fields\n- Handling any data domain: finance, legal, logistics, medical, technical, operational, etc.\n- Parsing dates, times, numbers, identifiers, and formatted text when explicitly present\n\nCritical Rules:\n1. Extract ONLY information explicitly present in the provided text.\n2. Never infer, guess, fabricate, or normalize anything not stated.\n3. Output MUST be valid JSON — no markdown, no comments, no explanations.\n4. Never wrap JSON in strings or in an outer object like {\"output\": \"...\"}.\n5. Use null for all missing optional fields.\n6. Preserve formatting for all reference numbers, IDs, codes, emails, phone numbers, and dates exactly as shown.\n7. Follow the user-provided schema *exactly* — field names, nesting, types, arrays, object shapes.\n\nBehavior:\n- You are precise, literal, strict, and entirely focused on JSON extraction.\n- You never add text before or after JSON.\n- When JSON is requested, your response MUST start with \"{\" and end with \"}\"."
+        }
+      },
+      "id": "generate-json-schema",
+      "name": "Generate JSON Schema",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [2220, 400],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract JSON schema output from LangChain Agent node\nconst item = $input.item.json;\n\n// Try different possible output locations\nlet schemaData = item.output || item.text || item.response || item.json_schema || item;\n\n// If it's a string, try to parse it as JSON\nif (typeof schemaData === 'string') {\n  try {\n    schemaData = JSON.parse(schemaData);\n  } catch (e) {\n    // If parsing fails, try to extract JSON from markdown code blocks\n    const jsonMatch = schemaData.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/);\n    if (jsonMatch) {\n      try {\n        schemaData = JSON.parse(jsonMatch[1]);\n      } catch (e2) {\n        // Keep as string if all parsing fails\n      }\n    }\n  }\n}\n\n// If output is still empty or invalid, return empty object\nif (!schemaData || (typeof schemaData === 'object' && Object.keys(schemaData).length === 0)) {\n  schemaData = {};\n}\n\nreturn [{\n  json: {\n    ...item,\n    output: schemaData,\n    json_schema: schemaData\n  }\n}];"
+      },
+      "id": "extract-schema-output",
+      "name": "Extract Schema Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 400]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "merge-template-data",
+              "name": "json_schema",
+              "value": "={{ $('Get Template').item?.json?.json_schema || $('Extract Schema Output').item?.json?.output || $('Extract Schema Output').item?.json?.json_schema || {} }}",
+              "type": "object"
+            },
+            {
+              "id": "merge-message-template",
+              "name": "message_template",
+              "value": "={{ $('Get Template').item?.json?.message_template || 'Generate a human-readable summary of the extracted data' }}",
+              "type": "string"
+            },
+            {
+              "id": "merge-level-details",
+              "name": "level_of_details",
+              "value": "={{ $('Get Template').item?.json?.level_of_details || $('Merge OCR Results').item?.json?.new_template?.level_of_details || '5' }}",
+              "type": "string"
+            },
+            {
+              "id": "merge-text-for-extract",
+              "name": "text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "merge-doc-id-extract",
+              "name": "document_id",
+              "value": "={{ $json.document_id }}",
+              "type": "string"
+            },
+            {
+              "id": "merge-template-id-extract",
+              "name": "template_id",
+              "value": "={{ $json.template_id }}",
+              "type": "string"
+            },
+            {
+              "id": "merge-new-template-extract",
+              "name": "new_template",
+              "value": "={{ $json.new_template }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-extraction",
+      "name": "Prepare Extraction",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2440, 300]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "={{ JSON.stringify($json.json_schema) }}",
+        "autoFix": true,
+        "customizeRetryPrompt": true
+      },
+      "id": "structured-output-parser",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [2660, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=<task>\n  <objective>\n    Extract structured information from document text and return valid JSON matching the required schema exactly.\n  </objective>\n\n  <critical_instructions>\n    <instruction priority=\"highest\">Return ONLY valid JSON - no markdown, no code blocks, no explanations, no preamble</instruction>\n    <instruction priority=\"highest\">Extract ONLY data explicitly present in the document</instruction>    \n    <instruction priority=\"high\">Use null for missing optional fields</instruction>\n    <instruction priority=\"high\">NEVER make up, infer, or assume values not present in the document</instruction>\n    <instruction priority=\"medium\">Preserve exact formatting of reference numbers, dates, and contact information</instruction>\n  </critical_instructions>\n\n  <schema>\n{{ JSON.stringify($json.json_schema, null, 2) }}\n  </schema>\n\n  <level_of_details>\n{{ $json.level_of_details }}\n  </level_of_details>\n\n  <data_handling>\n    <rule type=\"null_values\">Use null for missing optional fields</rule>\n    <rule type=\"strings\">Show string values exactly as in document</rule>\n    <rule type=\"numbers\">Show number values exactly as in document</rule>\n    <rule type=\"arrays\">Show all array elements in order</rule>\n    <rule type=\"objects\">Show all subfields in objects</rule>\n  </data_handling>\n\n  <validation>\n    <check>Ensure JSON is valid and parseable</check>\n    <check>Verify all required fields are present</check>\n    <check>Ensure JSON matches the schema structure exactly</check>\n    <check>All data must be truth, if it is unknown leave null</check>\n  </validation>\n\n  <output_format>\n    Return only the JSON object with no additional text, formatting, or explanation.\n    Do not wrap in markdown code blocks.\n    Do not include \"```json\" or \"```\".\n    Start directly with \"{\" and end with \"}\".\n  </output_format>\n</task>\n\n<input_text>\n{{ $json.text }}\n</input_text>",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a specialized json structured-data extraction assistant.\n\nYour expertise includes:\n- Converting unstructured or semi-structured text into clean, well-formed JSON\n- Following arbitrary user-provided schemas with exact field names and hierarchy\n- Preserving all values exactly as written in the source text\n- Distinguishing required vs. optional fields\n- Handling any data domain: finance, legal, logistics, medical, technical, operational, etc.\n- Parsing dates, times, numbers, identifiers, and formatted text when explicitly present\n\nCritical Rules:\n1. Extract ONLY information explicitly present in the provided text.\n2. Never infer, guess, fabricate, or normalize anything not stated.\n3. Output MUST be valid JSON — no markdown, no comments, no explanations.\n4. Never wrap JSON in strings or in an outer object like {\"output\": \"...\"}.\n5. Use null for all missing optional fields.\n6. Preserve formatting for all reference numbers, IDs, codes, emails, phone numbers, and dates exactly as shown.\n7. Follow the user-provided schema *exactly* — field names, nesting, types, arrays, object shapes.\n\nBehavior:\n- You are precise, literal, strict, and entirely focused on JSON extraction.\n- You never add text before or after JSON.\n- When JSON is requested, your response MUST start with \"{\" and end with \"}\"."
+        }
+      },
+      "id": "extract-structured-data",
+      "name": "Extract Structured Data",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [2880, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract output from LangChain Agent node\n// LangChain nodes can return data in different formats:\n// - $json.output (when using output parser)\n// - $json.text (raw text response)\n// - $json.response (some formats)\n// - $json (direct object)\n\nconst item = $input.item.json;\n\n// Try different possible output locations\nlet extractedData = item.output || item.text || item.response || item;\n\n// If it's a string, try to parse it as JSON\nif (typeof extractedData === 'string') {\n  try {\n    extractedData = JSON.parse(extractedData);\n  } catch (e) {\n    // If parsing fails, keep as string\n  }\n}\n\n// If output is still empty or invalid, return empty object\nif (!extractedData || (typeof extractedData === 'object' && Object.keys(extractedData).length === 0)) {\n  extractedData = {};\n}\n\nreturn [{\n  json: {\n    ...item,\n    output: extractedData,\n    extracted_json: extractedData\n  }\n}];"
+      },
+      "id": "extract-ai-output",
+      "name": "Extract AI Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3100, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=<task>\n  <objective>\n    Convert a provided JSON object into a human-readable text summary that includes all fields, arrays, and nested objects.\n  </objective>\n\n  <critical_instructions>\n    <instruction priority=\"highest\">Return ONLY a human-readable text string summarizing the JSON - no markdown, no code blocks, no explanations, no preamble</instruction>\n    <instruction priority=\"highest\">\nYour output MUST include all fields in the JSON, including nested objects and arrays. Do NOT skip or omit any data.\n    </instruction>\n    <instruction priority=\"highest\">Preserve the hierarchy and relationships of objects and arrays in the text summary</instruction>\n    <instruction priority=\"high\">Represent arrays and nested objects in a clear, readable way, using indentation, numbering, or bullets</instruction>\n    <instruction priority=\"high\">Use emojis or simple labels where it improves readability (e.g., 📍 for locations, 💰 for rates, 👤 for names)</instruction>\n    <instruction priority=\"medium\">Dates, numbers, and strings must be represented exactly as they appear in the JSON</instruction>\n    <instruction priority=\"medium\">Do not invent or infer any new data</instruction>\n  </critical_instructions>\n\n  <message_template>\n{{ $json.message_template }}\n  </message_template>\n\n  <data_handling>\n    <rule type=\"null_values\">Display null values explicitly as \"null\"</rule>\n    <rule type=\"strings\">Show string values exactly as in JSON</rule>\n    <rule type=\"numbers\">Show number values exactly as in JSON</rule>\n    <rule type=\"arrays\">Show all array elements in order with numbering or bullets</rule>\n    <rule type=\"objects\">Show all subfields in objects with indentation or clear formatting</rule>\n  </data_handling>\n\n  <validation>\n    <check>Ensure output text includes every field in the input JSON</check>\n    <check>Ensure arrays and objects are represented in a human-readable way</check>\n    <check>Do not alter, omit, or invent any data</check>\n    <check>Maintain readability and hierarchy clarity</check>\n  </validation>\n\n  <output_format>\n    Return only the final human-readable text summary.\n    Do not wrap in markdown, code blocks, or JSON.\n  </output_format>\n</task>\n\n<input>\n  <json_data>\n{{ JSON.stringify($('Extract Structured Data').item.json.output) }}\n  </json_data>\n</input>",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "You are a specialized JSON-to-human-readable-text assistant.\n\nYour expertise includes:\n- Converting fully dynamic, nested JSON into readable text summaries\n- Preserving all fields, arrays, and object hierarchies\n- Maintaining exact values for strings, numbers, and dates\n- Using clear formatting, bullets, numbering, and optional emojis for readability\n- Never omitting any field, even optional or null ones\n- Handling any domain: logistics, finance, medical, technical, operational, etc.\n\nCritical Rules:\n1. Include ALL data from the input JSON in the output.\n2. Output must be a plain human-readable text summary, not JSON or code.\n3. Do not infer, guess, or invent new data.\n4. Preserve arrays, nested objects, and hierarchy using indentation, bullets, or numbering.\n5. Null or missing values must be explicitly displayed as \"null\".\n6. Dates, numbers, and strings must remain exactly as in the JSON.\n7. Do not add preamble, explanation, or extra text."
+        }
+      },
+      "id": "generate-message",
+      "name": "Generate Human-Readable Message",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [3320, 300],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract text output from LangChain Agent node\nconst item = $input.item.json;\n\n// Try different possible output locations for text\nlet messageText = item.output || item.text || item.response || item.message || '';\n\n// If it's an object, try to stringify it or get a text property\nif (typeof messageText === 'object') {\n  if (messageText.text) {\n    messageText = messageText.text;\n  } else if (messageText.message) {\n    messageText = messageText.message;\n  } else if (messageText.output) {\n    messageText = messageText.output;\n  } else {\n    messageText = JSON.stringify(messageText);\n  }\n}\n\n// Ensure it's a string\nif (typeof messageText !== 'string') {\n  messageText = String(messageText || '');\n}\n\nreturn [{\n  json: {\n    ...item,\n    output: messageText,\n    generated_message: messageText\n  }\n}];"
+      },
+      "id": "extract-message-output",
+      "name": "Extract Message Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3540, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate confidence based on extracted data quality\nconst extractedJson = $input.item.json.output || $input.item.json.extracted_json || {};\nconst rawText = $input.item.json.text || '';\n\n// Simple confidence calculation:\n// - If extracted JSON has data: 0.8-1.0\n// - If raw text is long: +0.1\n// - If extracted JSON is empty: 0.3\n\nlet confidence = 0.5;\n\nif (Object.keys(extractedJson).length > 0) {\n  confidence = 0.85;\n  \n  // Check if JSON has meaningful data (not just nulls)\n  const hasData = JSON.stringify(extractedJson).replace(/null/g, '').length > 10;\n  if (hasData) {\n    confidence = 0.95;\n  }\n}\n\nif (rawText.length > 100) {\n  confidence = Math.min(1.0, confidence + 0.05);\n}\n\nreturn [{\n  json: {\n    ...$input.item.json,\n    confidence: Math.round(confidence * 100) / 100\n  }\n}];"
+      },
+      "id": "calculate-confidence",
+      "name": "Calculate Confidence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3760, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "results",
+        "fields": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "document_id": "={{ $('Set Variables').item.json.document_id }}",
+            "extracted_json": "={{ $('Extract AI Output').item.json.extracted_json || $('Extract AI Output').item.json.output || {} }}",
+            "generated_message": "={{ $('Extract Message Output').item.json.generated_message || $('Extract Message Output').item.json.output || '' }}",
+            "raw_text": "={{ $('Merge OCR Results').item.json.text }}",
+            "confidence": "={{ $('Calculate Confidence').item.json.confidence || 0.5 }}",
+            "warnings": "={}"
+          }
+        }
+      },
+      "id": "save-results",
+      "name": "Save Results to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [3540, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-new-template-create",
+              "leftValue": "={{ $('Set Variables').item.json.new_template }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-create-template",
+      "name": "If Create Template",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [3760, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "templates",
+        "fields": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $('Set Variables').item.json.new_template.name }}",
+            "description": "={{ $('Set Variables').item.json.new_template.description }}",
+            "level_of_details": "={{ $('Set Variables').item.json.new_template.level_of_details }}",
+            "json_schema": "={{ $('Extract Schema Output').item.json.json_schema || $('Extract Schema Output').item.json.output || {} }}",
+            "message_template": "Generate a human-readable summary of the extracted data",
+            "created_by": null
+          }
+        }
+      },
+      "id": "create-template",
+      "name": "Create Template",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [3980, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-template-id",
+              "name": "template_id",
+              "value": "={{ $('Create Template').item.json.id || $('Set Variables').item.json.template_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-template-id",
+      "name": "Set Template ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [4200, 200]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "documents",
+        "updateKey": "id",
+        "updateKeyValue": "={{ $('Set Variables').item.json.document_id }}",
+        "fields": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "completed",
+            "template_id": "={{ $('Set Template ID').item.json.template_id || $('Set Variables').item.json.template_id }}"
+          }
+        }
+      },
+      "id": "update-document-status",
+      "name": "Update Document Status",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [4420, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response-success",
+              "name": "success",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "response-doc-id",
+              "name": "document_id",
+              "value": "={{ $('Set Variables').item.json.document_id }}",
+              "type": "string"
+            },
+            {
+              "id": "response-extracted-json",
+              "name": "extracted_json",
+              "value": "={{ $('Extract AI Output').item.json.extracted_json || $('Extract AI Output').item.json.output || {} }}",
+              "type": "object"
+            },
+            {
+              "id": "response-generated-message",
+              "name": "generated_message",
+              "value": "={{ $('Extract Message Output').item.json.generated_message || $('Extract Message Output').item.json.output || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "response-raw-text",
+              "name": "raw_text",
+              "value": "={{ $('Merge OCR Results').item.json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "response-confidence",
+              "name": "confidence",
+              "value": "={{ $('Calculate Confidence').item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "response-warnings",
+              "name": "warnings",
+              "value": "={}",
+              "type": "object"
+            },
+            {
+              "id": "response-template-id",
+              "name": "template_id",
+              "value": "={{ $('Set Template ID').item.json.template_id || $('Set Variables').item.json.template_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [4640, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [4860, 300],
+      "webhookId": "grand-parser-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error-success",
+              "name": "success",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "error-doc-id",
+              "name": "document_id",
+              "value": "={{ $('Set Variables').item.json.document_id || $json.document_id || 'unknown' }}",
+              "type": "string"
+            },
+            {
+              "id": "error-message",
+              "name": "error",
+              "value": "={{ $json.error?.message || $json.message || 'Unknown error occurred' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "error-response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [4640, 500],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [4860, 500],
+      "webhookId": "grand-parser-webhook"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "openai-gpt4o",
+      "name": "OpenAI GPT-4o",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [2880, 480],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "openai-gpt4o-mini",
+      "name": "OpenAI GPT-4o-mini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [3100, 480],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "openai-gpt4o-schema",
+      "name": "OpenAI GPT-4o (Schema)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [2220, 480],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Variables": {
+      "main": [
+        [
+          {
+            "node": "Download File from Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File from Storage": {
+      "main": [
+        [
+          {
+            "node": "Check File Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check File Type": {
+      "main": [
+        [
+          {
+            "node": "If PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If PDF": {
+      "main": [
+        [
+          {
+            "node": "Paddle OCR PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Paddle OCR Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Paddle OCR PDF": {
+      "main": [
+        [
+          {
+            "node": "Merge OCR Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Paddle OCR Image": {
+      "main": [
+        [
+          {
+            "node": "Merge OCR Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge OCR Results": {
+      "main": [
+        [
+          {
+            "node": "If Has Template ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Has Template ID": {
+      "main": [
+        [
+          {
+            "node": "Get Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If New Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Template": {
+      "main": [
+        [
+          {
+            "node": "Prepare Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If New Template": {
+      "main": [
+        [
+          {
+            "node": "Generate JSON Schema",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate JSON Schema": {
+      "main": [
+        [
+          {
+            "node": "Extract Schema Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "ai_languageModel": [
+        [
+          {
+            "node": "OpenAI GPT-4o (Schema)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Schema Output": {
+      "main": [
+        [
+          {
+            "node": "Prepare Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Extraction": {
+      "main": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Extract Structured Data",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Structured Data": {
+      "main": [
+        [
+          {
+            "node": "Extract AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "ai_languageModel": [
+        [
+          {
+            "node": "OpenAI GPT-4o",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract AI Output": {
+      "main": [
+        [
+          {
+            "node": "Generate Human-Readable Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Human-Readable Message": {
+      "main": [
+        [
+          {
+            "node": "Extract Message Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "ai_languageModel": [
+        [
+          {
+            "node": "OpenAI GPT-4o-mini",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Message Output": {
+      "main": [
+        [
+          {
+            "node": "Calculate Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Confidence": {
+      "main": [
+        [
+          {
+            "node": "Save Results to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Results to Supabase": {
+      "main": [
+        [
+          {
+            "node": "If Create Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Create Template": {
+      "main": [
+        [
+          {
+            "node": "Create Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Document Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Template": {
+      "main": [
+        [
+          {
+            "node": "Set Template ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Template ID": {
+      "main": [
+        [
+          {
+            "node": "Update Document Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Document Status": {
+      "main": [
+        [
+          {
+            "node": "Prepare Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "grand-parser-v1"
+}
+

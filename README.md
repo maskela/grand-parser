@@ -50,11 +50,15 @@ npm install
 
 3. **Setup environment variables**:
 
-Copy `env.example` to `.env.local` and fill in your credentials:
+Copy `.env.example` to `.env` (or `.env.local` for local development) and fill in your credentials:
 
 ```bash
-cp env.example .env.local
+cp .env.example .env
+# OR for local development:
+cp .env.example .env.local
 ```
+
+**Note**: Next.js will automatically load `.env.local` in development and `.env` in production. Make sure to set `N8N_WEBHOOK_URL` with your actual n8n webhook URL.
 
 Required environment variables:
 
